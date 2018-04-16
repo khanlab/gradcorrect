@@ -1,0 +1,180 @@
+#!/bin/bash
+
+
+#function for unwarping and generating warp files
+function usage {
+ echo "Performs gradient unwarping and saves relevant output"
+ echo ""
+ echo "Required args:"
+ echo "  -i input_nii"
+ echo "  -g input_grad_coeff"
+ echo ""
+ echo "Optional args:"
+ echo "  -u output_unwarped_nii"
+ echo "  -c output_unwarped_intcorr_nii"
+ echo "  -w output_warp_nii (apply with FSL applywarp --abs)"
+ echo "  -j output_jacobian_determinant_nii (multiply for intensity correction)"
+ echo "  -d output_grad_dev_nii (for DWI)"
+ echo "  -s scratch_dir (default `pwd`/gradcorr)"
+ echo "  -k     (keep scratch directory , default removed afterwards)"
+
+}
+
+if [ "$#" -lt 3 ]
+then
+ usage
+ exit 1
+fi
+
+in_nii=
+grad_coeff=
+scratch_dir=`pwd`/gradcorr
+unwarped_nii=
+unwarped_intcorr_nii=
+warp_nii=
+detjac_nii=
+grad_dev_nii=
+keep_scratch=0
+
+while getopts "i:g:s:kw:u:c:j:d:" options; do
+ case $options in
+     i ) echo "  Input nii $OPTARG"
+         in_nii=$OPTARG;;
+     g ) echo "  Input grad_coeff $OPTARG"
+         grad_coeff=$OPTARG;;
+     s ) echo "  Using scratch dir $OPTARG"
+         scratch_dir=$OPTARG;;
+     k ) echo "  Keeping scratch dir"
+         keep_scratch=1;;
+     w ) echo "  Saving warp  nii to $OPTARG "
+         warp_nii=$OPTARG;;
+     u ) echo "  Saving unwarped nii to $OPTARG"
+         unwarped_nii=$OPTARG;;
+     c ) echo "  Saving unwarped, intensity-corrected nii to $OPTARG"
+         unwarped_intcorr_nii=$OPTARG;;
+     j ) echo "  Saving warp detjac nii to $OPTARG"
+         detjac_nii=$OPTARG;;
+     d ) echo "  Saving warp grad_dev nii to $OPTARG"
+         grad_dev_nii=$OPTARG;;
+    * ) usage
+	exit 1;;
+ esac
+done
+
+if [ ! -n "$in_nii" -o ! -n "$grad_coeff" ]
+then
+    usage
+    exit 1
+fi
+
+#CAVEAT -- works only for nii.gz, not nii
+
+if [ ! -e $in_nii ]
+then
+ echo "Input image $in_nii does not exist!"
+ exit 1
+fi
+
+if [ ! -e $grad_coeff ]
+then
+ echo "Input grad coeff $grad_coeff does not exist!"
+ exit 1
+fi
+
+   
+
+if [ ! -e $scratch_dir ]
+then
+    mkdir -p $scratch_dir
+fi
+
+in=input.nii.gz
+coeff=coeff.grad
+unwarped=input_unwarped.nii.gz
+unwarped_intcorr=input_unwarped_intcorr.nii.gz
+detjac=detjac.nii.gz
+warp=fullWarp_abs.nii.gz
+grad_dev=grad_dev.nii.gz
+grad_dev_prefix=grad_dev
+
+ext=${in_nii##*.}
+if [ "$ext" = "nii" ]
+then
+    cp -v $in_nii $scratch_dir/input.nii
+    gzip $scratch_dir/input.nii
+
+elif [ "$ext" = "gz" ]
+then
+    cp -v $in_nii $scratch_dir/$in
+else
+     echo "Unknown file extension, $ext, for $in_nii" 
+     exit 1
+fi
+
+cp -v $grad_coeff $scratch_dir/$coeff
+
+pushd $scratch_dir
+
+#gradunwarp params
+ fov=0.4 #cm
+ numpoints=300
+ 
+ #less aggressive parameters for memory conservation
+ fov=0.3 #cm
+ numpoints=100
+
+  #run gradunwarp
+  gradient_unwarp.py $in $unwarped siemens -g $coeff  -n --fovmin -$fov --fovmax $fov --numpoints $numpoints --verbose 
+
+  #get jacobian determinant
+  reg_jacobian  -ref $unwarped -def $warp -jac $detjac
+  fslmaths $detjac -mul -1 -abs $detjac
+
+  #modulate by det jac (intensity correction)
+  fslmaths $unwarped -mul $detjac $unwarped_intcorr
+
+ if [ -n "$grad_dev_nii" ]
+ then
+  #gen grad_dev (for dwi)
+  calc_grad_perc_dev --fullwarp=$warp --out=$grad_dev_prefix
+  fslmerge -t $grad_dev ${grad_dev_prefix}_x ${grad_dev_prefix}_y ${grad_dev_prefix}_z
+  fslmaths $grad_dev -div 100 $grad_dev 
+fi
+popd 
+
+#copy files to output paths
+if [ -n "$unwarped_nii" ]
+then
+cp -v $scratch_dir/$unwarped $unwarped_nii
+fi
+
+if [ -n "$unwarped_intcorr_nii" ]
+then
+cp -v $scratch_dir/$unwarped_intcorr $unwarped_intcorr_nii
+fi
+
+if [ -n "$warp_nii" ]
+then
+cp -v $scratch_dir/$warp $warp_nii
+fi
+
+if [ -n "$detjac_nii" ]
+then
+cp -v $scratch_dir/$detjac $detjac_nii
+fi
+
+if [ -n "$grad_dev_nii" ]
+then
+cp -v $scratch_dir/$grad_dev $grad_dev_nii
+fi
+
+if [ -n "$unwarped_nii" ]
+then
+cp -v $scratch_dir/$unwarped $unwarped_nii
+fi
+
+if [ "$keep_scratch" = 0 ]
+then
+  rm $scratch_dir/*
+  rmdir $scratch_dir
+fi
