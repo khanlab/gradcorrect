@@ -120,8 +120,8 @@ pushd $scratch_dir
  numpoints=300
  
  #less aggressive parameters for memory conservation
- fov=0.3 #cm
- numpoints=100
+# fov=0.3 #cm
+# numpoints=100
 
   #run gradunwarp
   gradient_unwarp.py $in $unwarped siemens -g $coeff  -n --fovmin -$fov --fovmax $fov --numpoints $numpoints --verbose 
