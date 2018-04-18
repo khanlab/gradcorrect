@@ -124,7 +124,7 @@ pushd $scratch_dir
 # numpoints=100
 
   #run gradunwarp
-  gradient_unwarp.py $in $unwarped siemens -g $coeff  -n --fovmin -$fov --fovmax $fov --numpoints $numpoints --verbose 
+  gradient_unwarp.py $in $unwarped siemens -g $coeff  -n --fovmin -$fov --fovmax $fov --numpoints $numpoints --interp_order 3 --verbose 
 
   #get jacobian determinant
   reg_jacobian  -ref $unwarped -def $warp -jac $detjac
