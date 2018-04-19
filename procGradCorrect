@@ -17,6 +17,12 @@ function usage {
  echo "  -d output_grad_dev_nii (for DWI)"
  echo "  -s scratch_dir (default `pwd`/gradcorr)"
  echo "  -k     (keep scratch directory , default removed afterwards)"
+ echo ""
+ echo "Grad-unwarp options"
+ echo "  -I interporder"
+ echo "  -N numpoints"
+ echo "  -F fovmin (from -fovmin to +fovmin)"
+
 
 }
 
@@ -35,8 +41,12 @@ warp_nii=
 detjac_nii=
 grad_dev_nii=
 keep_scratch=0
+fovmin=0.2 #in metres
+numpoints=150 
+interporder=3 #cubic
 
-while getopts "i:g:s:kw:u:c:j:d:" options; do
+
+while getopts "i:g:s:kw:u:c:j:d:I:N:F:" options; do
  case $options in
      i ) echo "  Input nii $OPTARG"
          in_nii=$OPTARG;;
@@ -56,6 +66,13 @@ while getopts "i:g:s:kw:u:c:j:d:" options; do
          detjac_nii=$OPTARG;;
      d ) echo "  Saving warp grad_dev nii to $OPTARG"
          grad_dev_nii=$OPTARG;;
+     I ) echo "  Interp order $OPTARG"
+         interporder=$OPTARG;;
+     N ) echo "  Numpoints $OPTARG"
+         numpoints=$OPTARG;;
+     F ) echo "  fovmin $OPTARG"
+         fovmin=$OPTARG;;
+
     * ) usage
 	exit 1;;
  esac
@@ -115,16 +132,9 @@ cp -v $grad_coeff $scratch_dir/$coeff
 
 pushd $scratch_dir
 
-#gradunwarp params
- fov=0.4 #cm
- numpoints=300
  
- #less aggressive parameters for memory conservation
-# fov=0.3 #cm
-# numpoints=100
-
   #run gradunwarp
-  gradient_unwarp.py $in $unwarped siemens -g $coeff  -n --fovmin -$fov --fovmax $fov --numpoints $numpoints --interp_order 3 --verbose 
+  gradient_unwarp.py $in $unwarped siemens -g $coeff  -n --fovmin -$fovmin --fovmax $fovmin --numpoints $numpoints --interp_order $interporder --verbose 
 
   #get jacobian determinant
   reg_jacobian  -ref $unwarped -def $warp -jac $detjac

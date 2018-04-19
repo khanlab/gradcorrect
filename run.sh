@@ -38,6 +38,10 @@ analysis_level=$3
 grad_coeff_file=
 
 
+fovmin=0.2
+numpoints=150
+interporder=3
+
 shift 3
 
 
@@ -184,7 +188,7 @@ do
     out_warp=$derivatives/$folder/${fileprefix}_${filetype}_target-nativeGC_warp.nii.gz
     out_detjac=$derivatives/$folder/${fileprefix}_${filetype}_target-nativeGC_warpdetjac.nii.gz
 
-    cmd="procGradCorrect -i $nii -g $grad_coeff_file -c $out_unwarped -s $scratch_dir/$subj -w $out_warp -j $out_detjac"
+    cmd="procGradCorrect -i $nii -g $grad_coeff_file -c $out_unwarped -s $scratch_dir/$subj -w $out_warp -j $out_detjac -F $fovmin -N $numpoints -I $interporder"
 
     if [ "$filetype" = "dwi" ]
     then
