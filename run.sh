@@ -188,7 +188,17 @@ do
     out_warp=$derivatives/$folder/${fileprefix}_${filetype}_target-nativeGC_warp.nii.gz
     out_detjac=$derivatives/$folder/${fileprefix}_${filetype}_target-nativeGC_warpdetjac.nii.gz
 
-    cmd="procGradCorrect -i $nii -g $grad_coeff_file -c $out_unwarped -s $scratch_dir/$subj -w $out_warp -j $out_detjac -F $fovmin -N $numpoints -I $interporder"
+    if echo $file | grep -q part-phase
+    then    
+        #phase image, skip detjac normalization, and use nearest neighbout (interporder=0)
+        cmd="procGradCorrect -i $nii -g $grad_coeff_file -u $out_unwarped -s $scratch_dir/$subj -w $out_warp  -F $fovmin -N $numpoints -I 0"
+
+    else
+        cmd="procGradCorrect -i $nii -g $grad_coeff_file -c $out_unwarped -s $scratch_dir/$subj -w $out_warp -j $out_detjac -F $fovmin -N $numpoints -I $interporder"
+
+    fi
+
+
 
     if [ "$filetype" = "dwi" ]
     then
