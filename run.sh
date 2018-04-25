@@ -186,15 +186,17 @@ do
     mkdir -p $out_folder/$folder $derivatives/$folder
     out_unwarped=$out_folder/$folder/${file}
     out_warp=$derivatives/$folder/${fileprefix}_${filetype}_target-nativeGC_warp.nii.gz
+    out_nointcorr=$derivatives/$folder/${fileprefix}_proc-noIntCorr_${filetype}.nii.gz
     out_detjac=$derivatives/$folder/${fileprefix}_${filetype}_target-nativeGC_warpdetjac.nii.gz
+    out_inpaintmask=$derivatives/$folder/${fileprefix}_${filetype}_inpaintMask.nii.gz
 
     if echo $file | grep -q part-phase
     then    
         #phase image, skip detjac normalization, and use nearest neighbout (interporder=0)
-        cmd="procGradCorrect -i $nii -g $grad_coeff_file -u $out_unwarped -s $scratch_dir/$subj -w $out_warp  -F $fovmin -N $numpoints -I 0"
+        cmd="procGradCorrect -i $nii -g $grad_coeff_file -u $out_nointcorr -s $scratch_dir/$subj -w $out_warp  -F $fovmin -N $numpoints -I 0"
 
     else
-        cmd="procGradCorrect -i $nii -g $grad_coeff_file -c $out_unwarped -s $scratch_dir/$subj -w $out_warp -j $out_detjac -F $fovmin -N $numpoints -I $interporder"
+        cmd="procGradCorrect -i $nii -g $grad_coeff_file -c $out_unwarped -u $out_nointcorr -s $scratch_dir/$subj -w $out_warp -j $out_detjac -F $fovmin -N $numpoints -I $interporder"
 
     fi
 
@@ -208,6 +210,32 @@ do
 
     echo $cmd
     $cmd
+
+
+    if echo $file | grep -q part-phase
+    then    
+        cp -v $out_nointcorr $out_unwarped
+
+    else
+        #perform correction of cubic spline overshoot
+        if [ "`fslval $out_unwarped dim4`" = "1" ]
+        then
+            dimension=3
+        else
+            dimension=4
+        fi
+        
+        inpaint_iters=3
+        echo fslmaths $out_unwarped -thr 0 $out_inpaintmask
+        fslmaths $out_unwarped -thr 0 $out_inpaintmask
+        echo ImageMath $dimension $out_unwarped InPaint $out_inpaintmask $inpaint_iters
+        ImageMath $dimension $out_unwarped InPaint $out_inpaintmask $inpaint_iters
+
+    fi
+
+
+
+
 
     #copy extra files
     echo cp -v $folder/${file_noext}.{json,bvec,bval,tsv} $out_folder/$folder
