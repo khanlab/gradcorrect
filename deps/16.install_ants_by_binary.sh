@@ -15,7 +15,8 @@ if [ -d $D_DIR ]; then
 fi
 mkdir -p $D_DIR
 
-curl -L --retry 5 https://www.dropbox.com/s/thsul5xigqes7tz/Ants_2.1.0_Linux_Ubuntu14.04.tar.bz2?dl=0 | tar jx -C $D_DIR --strip-components=1
+echo "curl -L --retry 5 https://github.com/ANTsX/ANTs/releases/download/v2.1.0/Linux_Ubuntu14.04.tar.bz2  | tar jx -C $D_DIR --strip-components=1"
+curl -L --retry 5 https://github.com/ANTsX/ANTs/releases/download/v2.1.0/Linux_Ubuntu14.04.tar.bz2  | tar jx -C $D_DIR --strip-components=1
 
 
 if [ -e $HOME/.profile ]; then #ubuntu
@@ -45,9 +46,9 @@ source $PROFILE
 #test installation
 ants.sh -h >/dev/null
 if [ $? -eq 0 ]; then
-	echo "SUCCESS"
+	echo "ANTS SUCCESS"
 	echo "To update PATH of current terminal: source $PFORFILE"
 	echo "To update PATH of all terminal: re-login"
 else
-    echo 'FAIL.'
+    echo 'ANTS FAIL.'
 fi

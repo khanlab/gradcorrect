@@ -139,12 +139,21 @@ participants=$in_bids/participants.tsv
 scratch_dir=$out_folder/sourcedata/scratch
 derivatives=$out_folder/derivatives/gradcorrect
 
-
 mkdir -p $scratch_dir $derivatives
 
 scratch_dir=`realpath $scratch_dir`
 derivatives=`realpath $derivatives`
 out_folder=`realpath $out_folder`
+
+if [ ! -e $participants ]
+then
+    #participants tsv not required by bids, so if it doesn't exist, create one for temporary use
+    participants=$scratch_dir/participants.tsv
+    echo participant_id > $participants
+    pushd $in_bids
+    ls -d sub-* >> $participants
+    popd 
+fi
 
 echo $participants
 
@@ -168,7 +177,7 @@ fi
 pushd $in_bids
 
 #for every nifti:
-for nii in `ls $subj/{anat,func,fmap,dwi}/*.nii.gz`
+for nii in `ls $subj/{anat,func,fmap,dwi}/*.nii.gz $subj/*/{anat,func,fmap,dwi}/*.nii.gz`
 do
 
     folder=${nii%/*}
@@ -184,69 +193,138 @@ do
     fi
 
     mkdir -p $out_folder/$folder $derivatives/$folder
+    
+    #keep best unwarped in the main folder (to mirror input bids structure)
     out_unwarped=$out_folder/$folder/${file}
+
+    #intermediate files
+    intermediate_3d=$derivatives/$folder/${fileprefix}_${filetype}_3dvol.nii.gz
+
+    #extra files (keep in derivatives)
     out_warp=$derivatives/$folder/${fileprefix}_${filetype}_target-nativeGC_warp.nii.gz
-    out_nointcorr=$derivatives/$folder/${fileprefix}_proc-noIntCorr_${filetype}.nii.gz
+    out_nointcorr=$derivatives/$folder/${fileprefix}_${filetype}_nodetjac.nii.gz
     out_detjac=$derivatives/$folder/${fileprefix}_${filetype}_target-nativeGC_warpdetjac.nii.gz
-    out_inpaintmask=$derivatives/$folder/${fileprefix}_${filetype}_inpaintMask.nii.gz
+    out_graddev=$derivatives/$folder/${fileprefix}_${filetype}_target-nativeGC_graddev.nii.gz
+    out_inpaintmask=$derivatives/$folder/${fileprefix}_${filetype}_inpaintMask.nii.gz 
+
+    
+    if [ "`fslval $nii dim4`" = "1" ]
+    then
+            dimension=3
+            in_vol=$nii
+     else
+            dimension=4
+
+            #extract 3d vol for procGradCorrect
+            echo fslroi $nii $intermediate_3d 0 1
+            fslroi $nii $intermediate_3d 0 1
+            in_vol=$intermediate_3d
+    fi
+
+    
 
     if echo $file | grep -q part-phase
     then    
         #phase image, skip detjac normalization, and use nearest neighbout (interporder=0)
-        cmd="procGradCorrect -i $nii -g $grad_coeff_file -u $out_nointcorr -s $scratch_dir/$subj -w $out_warp  -F $fovmin -N $numpoints -I 0"
-
+        cmd="procGradCorrect -i $in_vol -g $grad_coeff_file -u $out_nointcorr -s $scratch_dir/$subj -w $out_warp  -F $fovmin -N $numpoints -I 0"
+        applyinterp=nn
+        isphase=1
     else
-        cmd="procGradCorrect -i $nii -g $grad_coeff_file -c $out_unwarped -u $out_nointcorr -s $scratch_dir/$subj -w $out_warp -j $out_detjac -F $fovmin -N $numpoints -I $interporder"
+        cmd="procGradCorrect -i $in_vol -g $grad_coeff_file -c $out_unwarped -u $out_nointcorr -s $scratch_dir/$subj -w $out_warp -j $out_detjac -F $fovmin -N $numpoints -I $interporder"
 
+        applyinterp=spline
+        isphase=0
     fi
-
 
 
     if [ "$filetype" = "dwi" ]
     then
-    out_graddev=$derivatives/$folder/${fileprefix}_${filetype}_target-nativeGC_graddev.nii.gz
     cmd="$cmd -d $out_graddev"
     fi
 
+    if [ ! -e $out_warp ]
+    then
     echo $cmd
     $cmd
-
-
-    if echo $file | grep -q part-phase
-    then    
-        cp -v $out_nointcorr $out_unwarped
-
-    else
-        #perform correction of cubic spline overshoot
-        if [ "`fslval $out_unwarped dim4`" = "1" ]
-        then
-            dimension=3
-        else
-            dimension=4
-        fi
-        
-        inpaint_iters=3
-        echo fslmaths $out_unwarped -thr 0 $out_inpaintmask
-        fslmaths $out_unwarped -thr 0 $out_inpaintmask
-        echo ImageMath $dimension $out_unwarped InPaint $out_inpaintmask $inpaint_iters
-        ImageMath $dimension $out_unwarped InPaint $out_inpaintmask $inpaint_iters
-
     fi
 
+    #remove extra file
+    rm -vf $intermediate_3d
 
+    if [ ! -e $out_nointcorr ]
+    then
+        echo applywarp -i $nii -o $out_nointcorr -w $out_warp --abs --interp=$applyinterp -r $nii 
+        applywarp -i $nii -o $out_nointcorr -w $out_warp --abs --interp=$applyinterp -r $nii 
+    fi
+        if [ "$isphase" = "0" ]
+        then
+   
+            if [ ! -e $out_unwarped ]
+            then
+
+            #detjac modulation
+            echo fslmaths $out_nointcorr -mul $out_detjac $out_unwarped
+            fslmaths $out_nointcorr -mul $out_detjac $out_unwarped
+             
+
+            #perform correction of cubic spline overshoot
+            inpaint_iters=3
+            echo fslmaths $out_unwarped -thr 0 $out_inpaintmask
+            fslmaths $out_unwarped -thr 0 $out_inpaintmask
+            echo "starting inpainting at `date`"
+            echo ImageMath $dimension $out_unwarped InPaint $out_inpaintmask $inpaint_iters
+            ImageMath $dimension $out_unwarped InPaint $out_inpaintmask $inpaint_iters
+            echo "done inpainting at `date`"
+
+            fi
+
+        else 
+         cp -v $out_nointcorr $out_unwarped
+        fi
+
+
+        #ensure final unwarped (out_unwarped) is same datatype and geom as input (assuming mr images are input type short)
+        echo c3d $out_unwarped -type short -o $out_unwarped
+        c3d $out_unwarped -type short -o $out_unwarped
+        echo fslcpgeom $nii $out_unwarped
 
 
 
     #copy extra files
-    echo cp -v $folder/${file_noext}.{json,bvec,bval,tsv} $out_folder/$folder
-    cp -v $folder/${file_noext}.{json,bvec,bval,tsv} $out_folder/$folder
+    for ext in json bvec bval tsv
+    do
+        if [ -e $folder/${file_noext}.$ext ]
+        then
+            cp -v $folder/${file_noext}.$ext $out_folder/$folder
+        fi
+    done
+
+
+done #nii
+
+#TODO: add check if existing first to avoid errors in log
+
+for otherfile in `ls ./*.{tsv,json} $subj/*.{tsv,json} $subj/*/*.{tsv,json}`
+do
+ folder=${otherfile%/*} 
+ file=${otherfile##*/}
+ cp -v $otherfile $out_folder/$folder/$file
 
 done
-
 
 popd
 
-echo cp -v $in_bids/*.{tsv,json} $out_folder
-cp -v $in_bids/*.{tsv,json} $out_folder
+
+#TODO: add check if existing first to avoid errors in log
+
+for otherfile in `ls ./*.{tsv,json}`
+do
+ folder=${otherfile%/*} 
+ file=${otherfile##*/}
+ cp -v $otherfile $out_folder/$folder/$file
 
 done
+
+
+
+done #subj
