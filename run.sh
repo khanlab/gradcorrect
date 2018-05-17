@@ -308,6 +308,12 @@ for otherfile in `ls ./*.{tsv,json} $subj/*.{tsv,json} $subj/*/*.{tsv,json}`
 do
  folder=${otherfile%/*} 
  file=${otherfile##*/}
+
+    if echo $file | grep -q DIS
+    then    
+        continue
+    fi
+
  cp -v $otherfile $out_folder/$folder/$file
 
 done
@@ -321,10 +327,15 @@ for otherfile in `ls ./*.{tsv,json}`
 do
  folder=${otherfile%/*} 
  file=${otherfile##*/}
+    if echo $file | grep -q DIS
+    then    
+        continue
+    fi
+ 
  cp -v $otherfile $out_folder/$folder/$file
 
 done
 
-
+#TO DO: remove *DIS* scans from the _scans.tsv file
 
 done #subj
