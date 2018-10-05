@@ -251,22 +251,23 @@ do
     #remove extra file
     rm -vf $intermediate_3d
 
-    if [ ! -e $out_nointcorr ]
+    #this applies warp to input nifti if 4d
+    if [ "$dimension" == 4 ]
     then
         echo applywarp -i $nii -o $out_nointcorr -w $out_warp --abs --interp=$applyinterp -r $nii 
         applywarp -i $nii -o $out_nointcorr -w $out_warp --abs --interp=$applyinterp -r $nii 
+  
+       #detjac modulation
+        echo fslmaths $out_nointcorr -mul $out_detjac $out_unwarped
+        fslmaths $out_nointcorr -mul $out_detjac $out_unwarped
+             
     fi
+
+
+
         if [ "$isphase" = "0" ]
         then
-   
-            if [ ! -e $out_unwarped ]
-            then
-
-            #detjac modulation
-            echo fslmaths $out_nointcorr -mul $out_detjac $out_unwarped
-            fslmaths $out_nointcorr -mul $out_detjac $out_unwarped
-             
-
+ 
             #perform correction of cubic spline overshoot
             inpaint_iters=3
             echo fslmaths $out_unwarped -thr 0 $out_inpaintmask
@@ -276,17 +277,19 @@ do
             ImageMath $dimension $out_unwarped InPaint $out_inpaintmask $inpaint_iters
             echo "done inpainting at `date`"
 
-            fi
-
         else 
          cp -v $out_nointcorr $out_unwarped
         fi
 
 
+        #LEAVE THIS OUT, WAS MAKING ALL BUT 1st 3D VOLUME ZEROED
+
         #ensure final unwarped (out_unwarped) is same datatype and geom as input (assuming mr images are input type short)
-        echo c3d $out_unwarped -type short -o $out_unwarped
-        c3d $out_unwarped -type short -o $out_unwarped
-        echo fslcpgeom $nii $out_unwarped
+
+#        echo c3d $out_unwarped -type short -o $out_unwarped
+#        c3d $out_unwarped -type short -o $out_unwarped
+#        echo fslcpgeom $nii $out_unwarped
+#        fslcpgeom $nii $out_unwarped
 
 
 
