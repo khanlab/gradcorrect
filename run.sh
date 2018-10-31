@@ -282,14 +282,12 @@ do
         fi
 
 
-        #LEAVE THIS OUT, WAS MAKING ALL BUT 1st 3D VOLUME ZEROED
-
         #ensure final unwarped (out_unwarped) is same datatype and geom as input (assuming mr images are input type short)
 
-#        echo c3d $out_unwarped -type short -o $out_unwarped
-#        c3d $out_unwarped -type short -o $out_unwarped
-#        echo fslcpgeom $nii $out_unwarped
-#        fslcpgeom $nii $out_unwarped
+        echo fslmaths $out_unwarped $out_unwarped -odt short
+        fslmaths $out_unwarped $out_unwarped -odt short
+        echo fslcpgeom $nii $out_unwarped
+        fslcpgeom $nii $out_unwarped
 
 
 
