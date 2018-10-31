@@ -38,7 +38,7 @@ jobs:
           command: |
               export DOCKER_NAME=$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:latest
               # put tests here
-              docker run -it $DOCKER_NAME ls
+              echo "placeholder test here"
 
   deploy_dev:
     docker:
