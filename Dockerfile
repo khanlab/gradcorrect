@@ -4,7 +4,7 @@ MAINTAINER <alik@robarts.ca>
 RUN mkdir -p /gradcorrect
 COPY . /gradcorrect
 
-ENV DEBIAN_FRONTENDnoninteractive
+ENV DEBIAN_FRONTEND noninteractive
 RUN bash /gradcorrect/deps/00.install_basics_sudo.sh
 RUN bash /gradcorrect/deps/03.install_anaconda2_nipype_dcmstack_by_binary.sh /opt
 RUN bash /gradcorrect/deps/10.install_afni_fsl_sudo.sh
