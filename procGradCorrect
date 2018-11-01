@@ -117,18 +117,18 @@ grad_dev_prefix=grad_dev
 ext=${in_nii##*.}
 if [ "$ext" = "nii" ]
 then
-    cp -v $in_nii $scratch_dir/input.nii
+    cp -v --no-preserve mode $in_nii $scratch_dir/input.nii
     gzip $scratch_dir/input.nii
 
 elif [ "$ext" = "gz" ]
 then
-    cp -v $in_nii $scratch_dir/$in
+    cp -v --no-preserve mode $in_nii $scratch_dir/$in
 else
      echo "Unknown file extension, $ext, for $in_nii" 
      exit 1
 fi
 
-cp -v $grad_coeff $scratch_dir/$coeff
+cp -v --no-preserve mode $grad_coeff $scratch_dir/$coeff
 
 pushd $scratch_dir
 
@@ -185,6 +185,6 @@ fi
 
 if [ "$keep_scratch" = 0 ]
 then
-  rm $scratch_dir/*
+  rm -f $scratch_dir/*
   rmdir $scratch_dir
 fi

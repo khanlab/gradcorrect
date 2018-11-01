@@ -30,7 +30,7 @@ then
  echo ""
  echo "     Optional arguments:"
  echo "          [--participant_label PARTICIPANT_LABEL [PARTICIPANT_LABEL...]]"
- echo "          [--only_matching SEARCHSTRING ]  (default: *, e.g.: use 2RAGE to only convert *2RAGE* images, e.g. MP2RAGE and SA2RAGE)"
+ echo "          [--only_matching SEARCHSTRING ]  ( e.g.: use 2RAGE to only convert *2RAGE* images, e.g. MP2RAGE and SA2RAGE)"
  echo ""
  exit 1
 fi
@@ -92,14 +92,14 @@ while :; do
 
        --only_matching )       # takes an option argument; ensure it has been specified.
           if [ "$2" ]; then
-                searchstring=$2
+                only_matching=$2
                   shift
 	      else
               die 'error: "--only_matching" requires a non-empty option argument.'
             fi
               ;;
      --only_matching=?*)
-          searchstring=${1#*=} # delete everything up to "=" and assign the remainder.
+          only_matching=${1#*=} # delete everything up to "=" and assign the remainder.
             ;;
           --only_matching=)         # handle the case of an empty --participant=
          die 'error: "--only_matching" requires a non-empty option argument.'
@@ -120,7 +120,10 @@ while :; do
 
 shift $((OPTIND-1))
 
-
+if [ -n "$only_matching" ]
+then
+    searchstring=*${only_matching}*
+fi
 
 if [ -e $in_bids ]
 then
@@ -229,35 +232,38 @@ do
     out_inpaintmask=$derivatives/$folder/${fileprefix}_${filetype}_inpaintMask.nii.gz 
 
     
-    if [ "`fslval $nii dim4`" = "1" ]
+    if [ "`fslval $nii dim4`" -lt  2 ]
     then
+	    echo "3D volume, using as is"
             dimension=3
             in_vol=$nii
      else
             dimension=4
-
+	    echo "4D volume, extracting 1st 3D vol"
             #extract 3d vol for procGradCorrect
             echo fslroi $nii $intermediate_3d 0 1
             fslroi $nii $intermediate_3d 0 1
             in_vol=$intermediate_3d
     fi
 
-    
 
-    if echo $file | grep -q part-phase
-    then    
-        #phase image, skip detjac normalization, and use nearest neighbout (interporder=0)
-        cmd="procGradCorrect -i $in_vol -g $grad_coeff_file -u $out_nointcorr -s $scratch_dir/$subj -w $out_warp  -F $fovmin -N $numpoints -I 0"
-        applyinterp=nn
-        isphase=1
-    else
-        cmd="procGradCorrect -i $in_vol -g $grad_coeff_file -c $out_unwarped -u $out_nointcorr -s $scratch_dir/$subj -w $out_warp -j $out_detjac -F $fovmin -N $numpoints -I $interporder"
+    #now, to avoid re-computing warps that are the same for different images, use a hash of the nii sform to store a link to the out_warp 
+    echo "sform for $in_vol is `fslorient -getsform $in_vol`"
+    hash=`fslorient -getsform $in_vol | cksum | cut -f 1 -d ' '`
 
-        applyinterp=spline
-        isphase=0
-    fi
+    existing_warp=$scratch_dir/$subj.$hash.warp.nii.gz
+    existing_detjac=$scratch_dir/$subj.$hash.detjac.nii.gz
+    existing_graddev=$scratch_dir/$subj.$hash.graddev.nii.gz
 
+    echo "hashed file for out_warp is: $existing_warp"
+    if [ ! -e $existing_warp ]
+    then
+    echo "existing_warp doesn't exist, so going to run procGradCorrect"
 
+    #generic command to generate output warp
+    cmd="procGradCorrect -i $in_vol -g $grad_coeff_file -s $scratch_dir/$subj -w $out_warp -j $out_detjac -F $fovmin -N $numpoints -I $interporder"
+
+    #add graddev for dwi
     if [ "$filetype" = "dwi" ]
     then
     cmd="$cmd -d $out_graddev"
@@ -269,25 +275,55 @@ do
     $cmd
     fi
 
+      #now that warp is computed, keep a reference to it
+      echo linking $out_warp as $existing_warp
+      ln -s $out_warp $existing_warp
+      ln -s $out_detjac $existing_detjac
+     if [ "$filetype" = "dwi" ]
+      then
+      ln -s $out_graddev $existing_graddev
+      fi
+    else
+       #existing_warp exists, copy it to output
+      echo copying to $out_warp from $existing_warp
+       cp -Lv $existing_warp $out_warp 
+       cp -Lv $existing_detjac $out_detjac
+     if [ "$filetype" = "dwi" ]
+      then
+       cp -Lv $existing_graddev $out_graddev
+      fi
+
+    fi
+
+    #now, at this point, out_warp exists, so apply as required:
+
+    if echo $file | grep -q part-phase
+    then    
+        #phase image, skip detjac normalization, and use nearest neighbout (interporder=0) 
+	echo phase image, using nn 
+        applyinterp=nn
+        isphase=1
+    else
+	echo non-phase image, using spline 
+        applyinterp=spline
+        isphase=0
+    fi
+
     #remove extra file
     rm -vf $intermediate_3d
 
     #this applies warp to input nifti if 4d
-    if [ "$dimension" == 4 ]
-    then
-        echo applywarp -i $nii -o $out_nointcorr -w $out_warp --abs --interp=$applyinterp -r $nii 
-        applywarp -i $nii -o $out_nointcorr -w $out_warp --abs --interp=$applyinterp -r $nii 
+    echo "applying warp to $nii using $applyinterp interpolation with $out_warp"
+    echo applywarp -i $nii -o $out_nointcorr -w $out_warp --abs --interp=$applyinterp -r $nii 
+    applywarp -i $nii -o $out_nointcorr -w $out_warp --abs --interp=$applyinterp -r $nii 
   
-       #detjac modulation
-        echo fslmaths $out_nointcorr -mul $out_detjac $out_unwarped
-        fslmaths $out_nointcorr -mul $out_detjac $out_unwarped
-             
-    fi
-
-
-
+            
         if [ "$isphase" = "0" ]
         then
+	    echo "non-phase image, doing detjac modulation and cubic spline overshoot correction"
+            #detjac modulation
+            echo fslmaths $out_nointcorr -mul $out_detjac $out_unwarped
+            fslmaths $out_nointcorr -mul $out_detjac $out_unwarped
  
             #perform correction of cubic spline overshoot
             inpaint_iters=3
@@ -299,17 +335,17 @@ do
             echo "done inpainting at `date`"
 
         else 
+	  echo "phase image, so skipping detjac modulation and cubic spline correction (since nn interp)"
          cp -v $out_nointcorr $out_unwarped
         fi
 
+	echo "settings datatype to short and resetting header from original image"
 
         #ensure final unwarped (out_unwarped) is same datatype and geom as input (assuming mr images are input type short)
-
         echo fslmaths $out_unwarped $out_unwarped -odt short
         fslmaths $out_unwarped $out_unwarped -odt short
         echo fslcpgeom $nii $out_unwarped
         fslcpgeom $nii $out_unwarped
-
 
 
     #copy extra files
@@ -317,7 +353,7 @@ do
     do
         if [ -e $folder/${file_noext}.$ext ]
         then
-            cp -v $folder/${file_noext}.$ext $out_folder/$folder
+            cp -v --no-preserve mode $folder/${file_noext}.$ext $out_folder/$folder
         fi
     done
 
@@ -336,7 +372,7 @@ do
         continue
     fi
 
- cp -v $otherfile $out_folder/$folder/$file
+ cp -v --no-preserve mode $otherfile $out_folder/$folder/$file
 
 done
 
@@ -354,7 +390,7 @@ do
         continue
     fi
  
- cp -v $otherfile $out_folder/$folder/$file
+ cp -v --no-preserve mode $otherfile $out_folder/$folder/$file
 
 done
 
