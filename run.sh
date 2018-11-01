@@ -362,7 +362,7 @@ done #nii
 
 #TODO: add check if existing first to avoid errors in log
 
-for otherfile in `ls ./*.{tsv,json} $subj/${searchstring}.{tsv,json} $subj/*/${searchstring}.{tsv,json}`
+for otherfile in `ls ./*.{tsv,json} ./.bidsignore $subj/${searchstring}.{tsv,json} $subj/*/${searchstring}.{tsv,json}`
 do
  folder=${otherfile%/*} 
  file=${otherfile##*/}
