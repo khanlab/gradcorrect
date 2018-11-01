@@ -24,9 +24,13 @@ participant_label=
 
 if [ "$#" -lt 3 ]
 then
- echo "Usage: gradcorrect bids_dir output_dir {participant,group} <optional arguments>"
+ echo "Usage: gradcorrect bids_dir output_dir {participant,group} <additional arguments>"
+ echo "     Required arguments:"
+ echo "          [--grad_coeff_file GRAD_COEFF_FILE]  (required)"
+ echo ""
+ echo "     Optional arguments:"
  echo "          [--participant_label PARTICIPANT_LABEL [PARTICIPANT_LABEL...]]"
- echo "          [--grad_coeff_file GRAD_COEFF_FILE]"
+ echo "          [--only_matching SEARCHSTRING ]  (default: *, e.g.: use 2RAGE to only convert *2RAGE* images, e.g. MP2RAGE and SA2RAGE)"
  echo ""
  exit 1
 fi
@@ -36,6 +40,8 @@ in_bids=$1
 out_folder=$2 
 analysis_level=$3
 grad_coeff_file=
+
+searchstring=*
 
 
 fovmin=0.2
@@ -83,6 +89,21 @@ while :; do
           ;;
 
 
+
+       --only_matching )       # takes an option argument; ensure it has been specified.
+          if [ "$2" ]; then
+                searchstring=$2
+                  shift
+	      else
+              die 'error: "--only_matching" requires a non-empty option argument.'
+            fi
+              ;;
+     --only_matching=?*)
+          searchstring=${1#*=} # delete everything up to "=" and assign the remainder.
+            ;;
+          --only_matching=)         # handle the case of an empty --participant=
+         die 'error: "--only_matching" requires a non-empty option argument.'
+          ;;
 
       
       
@@ -177,7 +198,7 @@ fi
 pushd $in_bids
 
 #for every nifti:
-for nii in `ls $subj/{anat,func,fmap,dwi}/*.nii.gz $subj/*/{anat,func,fmap,dwi}/*.nii.gz`
+for nii in `ls $subj/{anat,func,fmap,dwi}/${searchstring}.nii.gz $subj/*/{anat,func,fmap,dwi}/${searchstring}.nii.gz`
 do
 
     folder=${nii%/*}
@@ -305,7 +326,7 @@ done #nii
 
 #TODO: add check if existing first to avoid errors in log
 
-for otherfile in `ls ./*.{tsv,json} $subj/*.{tsv,json} $subj/*/*.{tsv,json}`
+for otherfile in `ls ./*.{tsv,json} $subj/${searchstring}.{tsv,json} $subj/*/${searchstring}.{tsv,json}`
 do
  folder=${otherfile%/*} 
  file=${otherfile##*/}
@@ -324,7 +345,7 @@ popd
 
 #TODO: add check if existing first to avoid errors in log
 
-for otherfile in `ls ./*.{tsv,json}`
+for otherfile in `ls ./${searchstring}.{tsv,json}`
 do
  folder=${otherfile%/*} 
  file=${otherfile##*/}
