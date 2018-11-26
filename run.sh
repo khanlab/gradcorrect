@@ -9,7 +9,7 @@
 # copy json,bvec,bval,tsv files from anat/func/fmap/dwi
 # copy json,tsv from main folder 
 
-#create derivatives/gradcorrect folder for:
+#create sourcedata/gradcorrect folder for:
 # save warpfiles as {prefix}_target-nativeGC_warp.nii.gz
 # save detjac as {prefix}_target-nativeGC_detjac.nii.gz
 
@@ -161,12 +161,12 @@ fi
 participants=$in_bids/participants.tsv
 
 scratch_dir=$out_folder/sourcedata/scratch
-derivatives=$out_folder/derivatives/gradcorrect
+sourcedata=$out_folder/sourcedata/gradcorrect
 
-mkdir -p $scratch_dir $derivatives
+mkdir -p $scratch_dir $sourcedata
 
 scratch_dir=`realpath $scratch_dir`
-derivatives=`realpath $derivatives`
+sourcedata=`realpath $sourcedata`
 out_folder=`realpath $out_folder`
 
 if [ ! -e $participants ]
@@ -216,20 +216,20 @@ do
         continue
     fi
 
-    mkdir -p $out_folder/$folder $derivatives/$folder
+    mkdir -p $out_folder/$folder $sourcedata/$folder
     
     #keep best unwarped in the main folder (to mirror input bids structure)
     out_unwarped=$out_folder/$folder/${file}
 
     #intermediate files
-    intermediate_3d=$derivatives/$folder/${fileprefix}_${filetype}_3dvol.nii.gz
+    intermediate_3d=$sourcedata/$folder/${fileprefix}_${filetype}_3dvol.nii.gz
 
-    #extra files (keep in derivatives)
-    out_warp=$derivatives/$folder/${fileprefix}_${filetype}_target-nativeGC_warp.nii.gz
-    out_nointcorr=$derivatives/$folder/${fileprefix}_${filetype}_nodetjac.nii.gz
-    out_detjac=$derivatives/$folder/${fileprefix}_${filetype}_target-nativeGC_warpdetjac.nii.gz
-    out_graddev=$derivatives/$folder/${fileprefix}_${filetype}_target-nativeGC_graddev.nii.gz
-    out_inpaintmask=$derivatives/$folder/${fileprefix}_${filetype}_inpaintMask.nii.gz 
+    #extra files (keep in sourcedata)
+    out_warp=$sourcedata/$folder/${fileprefix}_${filetype}_target-nativeGC_warp.nii.gz
+    out_nointcorr=$sourcedata/$folder/${fileprefix}_${filetype}_nodetjac.nii.gz
+    out_detjac=$sourcedata/$folder/${fileprefix}_${filetype}_target-nativeGC_warpdetjac.nii.gz
+    out_graddev=$sourcedata/$folder/${fileprefix}_${filetype}_target-nativeGC_graddev.nii.gz
+    out_inpaintmask=$sourcedata/$folder/${fileprefix}_${filetype}_inpaintMask.nii.gz 
 
     
     if [ "`fslval $nii dim4`" -lt  2 ]
