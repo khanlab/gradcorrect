@@ -31,6 +31,7 @@ jobs:
             apk add --update make wget
       - run: 
           name: Load docker image
+          no_output_timeout: 1h
           command: |
             docker load -i /tmp/workspace/docker_image.tar
       - run:
@@ -49,10 +50,12 @@ jobs:
           at: /tmp/workspace
       - run: 
           name: Load docker image
+          no_output_timeout: 1h
           command: |
             docker load -i /tmp/workspace/docker_image.tar
       - run:
           name: Pushing build to docker hub
+          no_output_timeout: 1h
           command: |
             docker login -u $DOCKER_USER -p $DOCKER_PASS
             export DOCKER_NAME=$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:latest
@@ -69,10 +72,12 @@ jobs:
           at: /tmp/workspace
       - run: 
           name: Load docker image
+          no_output_timeout: 1h
           command: |
             docker load -i /tmp/workspace/docker_image.tar
       - run:
           name: Pushing build to docker hub
+          no_output_timeout: 1h
           command: |
             docker login -u $DOCKER_USER -p $DOCKER_PASS
             export DOCKER_NAME=$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:latest
