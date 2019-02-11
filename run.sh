@@ -212,7 +212,7 @@ do
 
     if echo $file | grep -q DIS
     then    
-        echo "$file already gradient distortion corrected, skipping..."
+        echo "$file already gradient distortion corrected from scanner, skipping..."
         continue
     fi
 
@@ -230,6 +230,13 @@ do
     out_detjac=$sourcedata/$folder/${fileprefix}_${filetype}_target-nativeGC_warpdetjac.nii.gz
     out_graddev=$sourcedata/$folder/${fileprefix}_${filetype}_target-nativeGC_graddev.nii.gz
     out_inpaintmask=$sourcedata/$folder/${fileprefix}_${filetype}_inpaintMask.nii.gz 
+
+    if [ -e $out_unwarped ]
+    then
+        echo "$file already gradient distortion corrected by this app, skipping..."
+	echo "   to force re-processing: rm $out_unwarped"
+	continue
+    fi
 
     
     if [ "`fslval $nii dim4`" -lt  2 ]
