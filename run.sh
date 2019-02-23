@@ -303,8 +303,8 @@ do
     fi
 
     #now, at this point, out_warp exists, so apply as required:
-
-    if echo $file | grep -q part-phase
+   
+    if echo $file | grep -qE 'part-phase|phasediff'
     then    
         #phase image, skip detjac normalization, and use nearest neighbout (interporder=0) 
 	echo phase image, using nn 
