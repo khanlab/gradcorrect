@@ -304,7 +304,7 @@ do
 
     #now, at this point, out_warp exists, so apply as required:
    
-    if echo $file | grep -qE 'part-phase|phasediff'
+    if echo $file | grep -qE 'part-phase|part-comb|phasediff'
     then    
         #phase image, skip detjac normalization, and use nearest neighbout (interporder=0) 
 	echo phase image, using nn 
@@ -316,6 +316,15 @@ do
         isphase=0
     fi
 
+    if echo $file | grep -qE 'T1map|MP2RAGE|SA2RAGE'
+    then    
+	echo mp2rage/sa2rage/t1map image, using spline, but skipping jac modulation
+        applyinterp=spline
+        isqmap=1
+    else 
+	isqmap=0
+    fi
+    
     #remove extra file
     rm -vf $intermediate_3d
 
@@ -327,11 +336,16 @@ do
             
         if [ "$isphase" = "0" ]
         then
+	    if [ "$isqmap" = 1 ]
+	    then
+              cp -v $out_nointcorr $out_unwarped
+	    else
 	    echo "non-phase image, doing detjac modulation and cubic spline overshoot correction"
             #detjac modulation
             echo fslmaths $out_nointcorr -mul $out_detjac $out_unwarped
             fslmaths $out_nointcorr -mul $out_detjac $out_unwarped
- 
+            
+	    fi
             #perform correction of cubic spline overshoot
             inpaint_iters=3
             echo fslmaths $out_unwarped -thr 0 $out_inpaintmask
@@ -340,7 +354,7 @@ do
             echo ImageMath $dimension $out_unwarped InPaint $out_inpaintmask $inpaint_iters
             ImageMath $dimension $out_unwarped InPaint $out_inpaintmask $inpaint_iters
             echo "done inpainting at `date`"
-
+	    
         else 
 	  echo "phase image, so skipping detjac modulation and cubic spline correction (since nn interp)"
          cp -v $out_nointcorr $out_unwarped
