@@ -201,7 +201,7 @@ fi
 pushd $in_bids
 
 #for every nifti:
-for nii in `ls $subj/{anat,func,fmap,dwi}/${searchstring}.nii.gz $subj/*/{anat,func,fmap,dwi}/${searchstring}.nii.gz`
+for nii in `ls $subj/{anat,func,fmap,dwi,asl}/${searchstring}.nii.gz $subj/*/{anat,func,fmap,dwi,asl}/${searchstring}.nii.gz`
 do
 
     folder=${nii%/*}
