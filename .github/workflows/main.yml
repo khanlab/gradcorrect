@@ -26,9 +26,6 @@ jobs:
       - name: checkout
         uses: actions/checkout@v2
         
-      - name: test 
-        run: chmod a+x binary && ./binary
-   
       - name: Set image names
         shell: bash
         run: |
