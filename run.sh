@@ -368,7 +368,7 @@ do
         case "$orig_dtype" in
             UINT8)   odt="char"   ;;
             INT16)   odt="short"  ;;
-            UINT16)  odt="ushort" ;;
+            UINT16)  odt="int"    ;;  # fslmaths has no ushort; INT32 holds all UINT16 values without sign corruption
             INT32)   odt="int"    ;;
             FLOAT32) odt="float"  ;;
             FLOAT64) odt="double" ;;
