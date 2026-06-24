@@ -360,11 +360,22 @@ do
          cp -v $out_nointcorr $out_unwarped
         fi
 
-	echo "settings datatype to short and resetting header from original image"
+	echo "settings datatype to match input and resetting header from original image"
 
-        #ensure final unwarped (out_unwarped) is same datatype and geom as input (assuming mr images are input type short)
-        echo fslmaths $out_unwarped $out_unwarped -odt short
-        fslmaths $out_unwarped $out_unwarped -odt short
+        #ensure final unwarped (out_unwarped) is same datatype and geom as input
+        #detect the original datatype so we correctly handle both signed (INT16) and unsigned (UINT16) short
+        orig_dtype=$(fslinfo $nii | grep "^data_type" | awk '{print $2}')
+        case "$orig_dtype" in
+            UINT8)   odt="char"   ;;
+            INT16)   odt="short"  ;;
+            UINT16)  odt="ushort" ;;
+            INT32)   odt="int"    ;;
+            FLOAT32) odt="float"  ;;
+            FLOAT64) odt="double" ;;
+            *)       odt="short"  ;;
+        esac
+        echo fslmaths $out_unwarped $out_unwarped -odt $odt
+        fslmaths $out_unwarped $out_unwarped -odt $odt
         echo fslcpgeom $nii $out_unwarped
         fslcpgeom $nii $out_unwarped
 
