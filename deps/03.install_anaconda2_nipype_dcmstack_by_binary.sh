@@ -53,9 +53,8 @@ fi
 #	nibabel #installed when install nipype
 #	dcmstack #pip install 
 source $PROFILE
-conda install -y -c conda-forge nipype 
+conda install -y -c conda-forge nibabel 
 pip install --upgrade pip
-pip install https://github.com/moloney/dcmstack/archive/c12d27d2c802d75a33ad70110124500a83e851ee.zip
 
 #test installation
 echo "test anaconda install: "
