@@ -28,5 +28,5 @@ COPY --from=build --chmod=0755 /app/entrypoint.sh /app/entrypoint.sh
 COPY . /app/
 
 ENTRYPOINT [ "/app/entrypoint.sh" ]
-ENTRYPOINT  [ "/app/run.sh" ]
+CMD  [ "/app/run.sh" ]
 
