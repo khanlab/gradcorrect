@@ -23,7 +23,5 @@ WORKDIR /app
 # please note that the "prefix" (path) needs to stay the same as in the build container
 COPY --from=build /app/.pixi/envs/default /app/.pixi/envs/default
 COPY --from=build --chmod=0755 /app/entrypoint.sh /app/entrypoint.sh
-# copy your project code into the container as well
-COPY ./my_project /app/my_project
 
 ENTRYPOINT  [ "run.sh" ]
