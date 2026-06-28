@@ -24,9 +24,9 @@ WORKDIR /app
 COPY --from=build /app/.pixi/envs/default /app/.pixi/envs/default
 COPY --from=build --chmod=0755 /app/entrypoint.sh /app/entrypoint.sh
 
-#copy code into containeir
+#copy code into container
 COPY . /app/
 
-ENTRYPOINT [ "/app/entrypoint.sh" ]
-CMD  [ "/app/run.sh" ]
+ENTRYPOINT [ "/app/entrypoint.sh", "/app/run.sh" ]
+CMD  [ ]
 
