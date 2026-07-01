@@ -1,46 +1,35 @@
-FROM ubuntu:xenial
-MAINTAINER <alik@robarts.ca>
+FROM ghcr.io/prefix-dev/pixi:0.71.0 AS build
 
-RUN mkdir -p /gradcorrect
-COPY . /gradcorrect
+# copy source code, pixi.toml and pixi.lock to the container
+WORKDIR /app
+COPY . .
+# install dependencies to `/app/.pixi/envs/prod`
+# use `--locked` to ensure the lock file is up to date with pixi.toml
+RUN apt-get update
+RUN apt-get install -y git
+RUN apt-get clean
+RUN pixi config set --local run-post-link-scripts insecure
+RUN pixi install --locked 
+# create the shell-hook bash script to activate the environment
+RUN pixi shell-hook -s bash > /shell-hook
+RUN echo "#!/bin/bash" > /app/entrypoint.sh
+RUN cat /shell-hook >> /app/entrypoint.sh
+RUN echo 'export FSLDIR="/app/.pixi/envs/default"' >> /app/entrypoint.sh
+RUN echo 'export FSLOUTPUTTYPE=NIFTI_GZ' >> /app/entrypoint.sh
+RUN echo 'export PATH="/app:${PATH}"' >> /app/entrypoint.sh
+# extend the shell-hook script to run the command passed to the container
+RUN echo 'exec "$@"' >> /app/entrypoint.sh
 
-ENV DEBIAN_FRONTEND noninteractive
-RUN bash /gradcorrect/deps/00.install_basics_sudo.sh
-RUN bash /gradcorrect/deps/03.install_anaconda2_nipype_dcmstack_by_binary.sh /opt
-RUN bash /gradcorrect/deps/10.install_afni_fsl_sudo.sh
-RUN bash /gradcorrect/deps/12.install_c3d_by_binary.sh /opt
-RUN bash /gradcorrect/deps/16.install_ants_by_binary.sh /opt
-RUN bash /gradcorrect/deps/25.install_niftyreg_by_source.sh /opt
-RUN bash /gradcorrect/deps/28.install_gradunwarp_by_source.sh /opt
+FROM ubuntu:24.04 AS production
+WORKDIR /app
+# only copy the production environment into prod container
+# please note that the "prefix" (path) needs to stay the same as in the build container
+COPY --from=build /app/.pixi/envs/default /app/.pixi/envs/default
+COPY --from=build --chmod=0755 /app/entrypoint.sh /app/entrypoint.sh
 
+#copy code into container
+COPY . /app/
 
-#anaconda2
-ENV PATH /opt/anaconda2/bin/:$PATH
+ENTRYPOINT [ "/app/entrypoint.sh", "/app/run.sh" ]
+CMD  [ ]
 
-#fsl
-ENV FSLDIR /usr/share/fsl/5.0
-ENV POSSUMDIR $FSLDIR
-ENV PATH /usr/lib/fsl/5.0:$PATH
-ENV FSLOUTPUTTYPE NIFTI_GZ
-ENV FSLMULTIFILEQUIT TRUE
-ENV FSLTCLSH /usr/bin/tclsh
-ENV FSLWISH /usr/bin/wish
-ENV FSLBROWSER /etc/alternatives/x-www-browser
-ENV LD_LIBRARY_PATH /usr/lib/fsl/5.0:${LD_LIBRARY_PATH}
-
-#c3d
-ENV PATH /opt/c3d/bin:$PATH
-
-#ants
-ENV PATH /opt/ants:$PATH
-ENV ANTSPATH /opt/ants
-
-
-#niftyreg
-ENV LD_LIBRARY_PATH /opt/niftyreg-1.3.9/lib:$LD_LIBRARY_PATH 
-ENV PATH /opt/niftyreg-1.3.9/bin:$PATH
-
-#this app:
-ENV PATH /gradcorrect:$PATH
-
-ENTRYPOINT ["/gradcorrect/run.sh"]
