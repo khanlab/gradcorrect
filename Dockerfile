@@ -16,6 +16,7 @@ RUN echo "#!/bin/bash" > /app/entrypoint.sh
 RUN cat /shell-hook >> /app/entrypoint.sh
 RUN echo 'export FSLDIR="/app/.pixi/envs/default"' >> /app/entrypoint.sh
 RUN echo 'export FSLOUTPUTTYPE=NIFTI_GZ' >> /app/entrypoint.sh
+RUN echo 'export PATH="/app:${PATH}"' >> /app/entrypoint.sh
 # extend the shell-hook script to run the command passed to the container
 RUN echo 'exec "$@"' >> /app/entrypoint.sh
 
