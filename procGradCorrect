@@ -137,7 +137,7 @@ pushd $scratch_dir
   gradient_unwarp.py $in $unwarped siemens -g $coeff  -n --fovmin -$fovmin --fovmax $fovmin --numpoints $numpoints --interp_order $interporder --verbose 
 
   #get jacobian determinant
-  reg_jacobian  -ref $unwarped -def $warp -jac $detjac
+  reg_jacobian  -ref $unwarped -trans $warp -jac $detjac
   fslmaths $detjac -mul -1 -abs $detjac
 
   #modulate by det jac (intensity correction)

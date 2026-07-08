@@ -14,6 +14,9 @@
 # save detjac as {prefix}_target-nativeGC_detjac.nii.gz
 
 
+SCRIPT_DIR=$(dirname "$0")
+
+
 
 function die {
  echo $1 >&2
@@ -268,7 +271,7 @@ do
     echo "existing_warp doesn't exist, so going to run procGradCorrect"
 
     #generic command to generate output warp
-    cmd="procGradCorrect -i $in_vol -g $grad_coeff_file -s $scratch_dir/$subj -w $out_warp -j $out_detjac -F $fovmin -N $numpoints -I $interporder"
+    cmd="${SCRIPT_DIR}/procGradCorrect -i $in_vol -g $grad_coeff_file -s $scratch_dir/$subj -w $out_warp -j $out_detjac -F $fovmin -N $numpoints -I $interporder"
 
     #add graddev for dwi
     if [ "$filetype" = "dwi" ]
@@ -325,14 +328,15 @@ do
 	isqmap=0
     fi
     
+    #this applies warp to input nifti if 4d
+    echo "applying warp to $nii using $applyinterp interpolation with $out_warp"
+    echo applywarp -i $nii -o $out_nointcorr -w $out_warp --abs --interp=$applyinterp -r $in_vol 
+    applywarp -i $nii -o $out_nointcorr -w $out_warp --abs --interp=$applyinterp -r $in_vol 
+ 
     #remove extra file
     rm -vf $intermediate_3d
 
-    #this applies warp to input nifti if 4d
-    echo "applying warp to $nii using $applyinterp interpolation with $out_warp"
-    echo applywarp -i $nii -o $out_nointcorr -w $out_warp --abs --interp=$applyinterp -r $nii 
-    applywarp -i $nii -o $out_nointcorr -w $out_warp --abs --interp=$applyinterp -r $nii 
-  
+ 
             
         if [ "$isphase" = "0" ]
         then
