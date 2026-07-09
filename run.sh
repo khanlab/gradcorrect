@@ -14,7 +14,7 @@
 # save detjac as {prefix}_target-nativeGC_detjac.nii.gz
 
 
-SCRIPT_DIR=$(dirname "$0")
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 
 
 
